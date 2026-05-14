@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { speakText as speakTextService } from '../services/elevenlabs'
 import type { PersonaConfig, Recipe } from '../types'
 
@@ -82,12 +82,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [timerRunning, setTimerRunning] = useState(false)
   const [cookStartedAt, setCookStartedAt] = useState<number | null>(null)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const isSpeakingRef = useRef(false)
 
   const speak = useCallback(async (text: string, voiceId: string) => {
+    isSpeakingRef.current = true
     setIsSpeaking(true)
     try {
       await speakTextService(text, voiceId)
     } finally {
+      isSpeakingRef.current = false
       setIsSpeaking(false)
     }
   }, [])

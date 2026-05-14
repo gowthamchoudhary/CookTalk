@@ -52,7 +52,17 @@ export async function generateRecipeFromVoice(dishName: string): Promise<Recipe>
           },
           {
             role: 'user',
-            content: `Generate a detailed step-by-step recipe for: ${dishName}. Return JSON in exactly this format: ${RECIPE_JSON_SHAPE}`,
+            content: `Generate a detailed, professional step-by-step recipe for: ${dishName}.
+
+Requirements:
+- Each step must be detailed - minimum 2-3 sentences explaining exactly what to do, what to look for, and why
+- Include sensory cues in each step (what it should smell like, look like, sound like, feel like)
+- Include exact temperatures, times, quantities in every step that needs them
+- Steps should be written as if explaining to someone cooking for the first time
+- Include 8-12 steps minimum for any real recipe
+- timerMinutes should be set for any step that requires waiting
+
+Return JSON in exactly this format: ${RECIPE_JSON_SHAPE}`,
           },
         ],
       },

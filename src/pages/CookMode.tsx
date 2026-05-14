@@ -4,16 +4,6 @@ import { TimerDisplay } from '../components/TimerDisplay'
 import { useAppContext } from '../context/AppContext'
 import { beginHoldRecording, type HoldRecorder } from '../services/elevenlabs'
 import { answerCookingQuestion, parseVoiceIntent } from '../services/groq'
-import type { Persona } from '../types'
-
-const almostThereLine: Record<Persona, string> = {
-  'drill-sergeant': 'Almost there, soldier! One last push!',
-  nani: 'Beta, almost there. Finish with love!',
-  'zen-master': 'The final movement approaches. Stay present.',
-  'hype-man': 'ALMOST THERE. BRING IT HOME!',
-}
-
-type WakeStatus = 'sleeping' | 'listening' | 'activated'
 
 export default function CookMode() {
   const navigate = useNavigate()
@@ -37,21 +27,26 @@ export default function CookMode() {
 
   const [isHolding, setIsHolding] = useState(false)
   const [isProcessingVoice, setIsProcessingVoice] = useState(false)
+  const [recognitionActive, setRecognitionActive] = useState(false)
   const [intentLabel, setIntentLabel] = useState('')
   const [timerFlash, setTimerFlash] = useState(false)
-  const [wakeStatus, setWakeStatus] = useState<WakeStatus>('sleeping')
 
   const holdRef = useRef<HoldRecorder | null>(null)
   const holdingActiveRef = useRef(false)
   const startHoldLockRef = useRef(false)
   const oneMinWarnedRef = useRef(false)
   const swipeStartXRef = useRef<number | null>(null)
+  const isFirstMount = useRef(true)
+  const isProcessingRef = useRef(false)
+  const isSpeakingRef = useRef(false)
+  const recognitionRef = useRef<any>(null)
+  const currentStepIndexRef = useRef(currentStepIndex)
+  const handleIntentRef = useRef<(intent: string, transcript: string) => Promise<void>>(async () => {})
 
   const currentStep = recipe?.steps[currentStepIndex]
   const totalSteps = recipe?.steps.length ?? 1
-  const fallbackInstruction = 'Welcome to cook mode. Hold the mic or say your wake word.'
+  const fallbackInstruction = 'Welcome to cook mode. Hold the mic or speak naturally.'
   const voiceId = selectedPersona?.voiceId ?? ''
-  const wakeWord = selectedPersona?.wakeWord ?? 'chef'
 
   useEffect(() => {
     if (!cookStartedAt) {
@@ -60,23 +55,59 @@ export default function CookMode() {
   }, [cookStartedAt, setCookStartedAt])
 
   useEffect(() => {
-    if (!recipe || !currentStep?.instruction) return
+    isSpeakingRef.current = isSpeaking
+  }, [isSpeaking])
 
-    let cancelled = false
-    void (async () => {
-      if (totalSteps > 1 && currentStepIndex === totalSteps - 1 && selectedPersona) {
-        const line = almostThereLine[selectedPersona.id] ?? 'Almost there!'
-        await speak(line, voiceId)
-        if (cancelled) return
-      }
-      await speak(currentStep.instruction, voiceId)
-    })()
-
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- step navigation only
+  useEffect(() => {
+    currentStepIndexRef.current = currentStepIndex
   }, [currentStepIndex])
+
+  const speakStepWithPersonality = useCallback(
+    async (stepIndex: number) => {
+      if (!recipe || !selectedPersona) return
+      const step = recipe.steps[stepIndex]
+      if (!step) return
+
+      const stepNum = stepIndex + 1
+      const total = recipe.steps.length
+      const prefix =
+        {
+          'drill-sergeant': `Step ${stepNum} of ${total}. `,
+          nani: `Beta, step ${stepNum}. `,
+          'zen-master': `Step ${stepNum}. Breathe. `,
+          'hype-man': `STEP ${stepNum} - LET'S GO! `,
+        }[selectedPersona.id] ?? `Step ${stepNum}. `
+
+      await speak(prefix + step.instruction, voiceId)
+    },
+    [recipe, selectedPersona, speak, voiceId],
+  )
+
+  useEffect(() => {
+    if (!selectedPersona || !recipe) return
+    const greeting =
+      {
+        'drill-sergeant': `ATTENTION! I'm your Drill Sergeant. We're cooking ${recipe.title} today. No excuses, no mistakes. Step one - LISTEN UP!`,
+        nani: `Arey beta, welcome welcome! I'm so happy you're here. Today we're making ${recipe.title} together. Don't worry, Nani will guide you every step. Now beta, let's start!`,
+        'zen-master': `Welcome. I am your Zen Master. Today we prepare ${recipe.title}. Each step is a meditation. Be present. Let us begin our journey together.`,
+        'hype-man': `YOOOO LET'S GOOO! We're about to cook ${recipe.title} and it's gonna be INCREDIBLE! I'm your hype man and I am SO EXCITED for this! Here we go - step one!`,
+      }[selectedPersona.id] ?? `Welcome. Today we're making ${recipe.title}. Let's begin.`
+
+    void speak(greeting, voiceId).then(() => {
+      if (recipe.steps[0]) {
+        void speakStepWithPersonality(0)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- greet once when cook mode opens
+  }, [])
+
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
+    }
+    void speakStepWithPersonality(currentStepIndex)
+  }, [currentStepIndex, speakStepWithPersonality])
 
   useEffect(() => {
     if (!timerRunning) return
@@ -131,11 +162,31 @@ export default function CookMode() {
     async (intent: string, transcript: string) => {
       if (!recipe || !currentStep) return
       if (intent === 'next') {
-        if (currentStepIndex < totalSteps - 1) setCurrentStepIndex(currentStepIndex + 1)
+        if (currentStepIndex < totalSteps - 1) {
+          const ack =
+            {
+              'drill-sergeant': 'Move it!',
+              nani: 'Good beta, very good!',
+              'zen-master': 'Well done. Forward.',
+              'hype-man': "LET'S GOOO!",
+            }[selectedPersona?.id ?? 'hype-man'] ?? "LET'S GOOO!"
+          await speak(ack, voiceId)
+          setCurrentStepIndex(currentStepIndex + 1)
+        } else {
+          await speak('That was the last step!', voiceId)
+        }
       } else if (intent === 'previous') {
+        const ack =
+          {
+            'drill-sergeant': 'Going back. Pay attention this time.',
+            nani: 'Of course beta, let me repeat.',
+            'zen-master': 'We return. No judgment.',
+            'hype-man': 'No worries, we got this!',
+          }[selectedPersona?.id ?? 'hype-man'] ?? 'No worries, we got this!'
+        await speak(ack, voiceId)
         if (currentStepIndex > 0) setCurrentStepIndex(currentStepIndex - 1)
       } else if (intent === 'repeat') {
-        await speak(currentStep.instruction, voiceId)
+        await speakStepWithPersonality(currentStepIndex)
       } else if (intent.startsWith('timer:')) {
         const mins = Number(intent.split(':')[1])
         if (Number.isFinite(mins) && mins > 0) {
@@ -163,6 +214,7 @@ export default function CookMode() {
       voiceId,
       selectedPersona,
       speak,
+      speakStepWithPersonality,
       navigate,
       setCurrentStepIndex,
       setTimerSeconds,
@@ -171,69 +223,53 @@ export default function CookMode() {
   )
 
   useEffect(() => {
-    if (!selectedPersona) return
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      setWakeStatus('sleeping')
-      return
-    }
+    handleIntentRef.current = handleIntent
+  }, [handleIntent])
 
-    const recognition = new SpeechRecognition()
+  useEffect(() => {
+    if (!selectedPersona || !recipe) return
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) return
+
+    const recognition = new SR()
     recognition.continuous = true
     recognition.interimResults = false
     recognition.lang = selectedPersona.language === 'hi' ? 'hi-IN' : 'en-US'
-
-    const activeWakeWord = selectedPersona.wakeWord.toLowerCase()
-    let activated = false
-    let silenceTimer: ReturnType<typeof setTimeout> | null = null
-    let commandBuffer = ''
+    recognitionRef.current = recognition
     let stopped = false
 
-    setWakeStatus('listening')
+    recognition.onresult = async (event: any) => {
+      if (isSpeakingRef.current || isProcessingRef.current) return
 
-    recognition.onresult = (event: any) => {
       const last = event.results[event.results.length - 1]
-      if (!last.isFinal) return
-      const text = last[0].transcript.toLowerCase().trim()
+      if (!last?.isFinal) return
+      const text = last[0].transcript.trim()
+      if (!text || text.length < 2) return
 
-      if (!activated) {
-        if (text.includes(activeWakeWord)) {
-          activated = true
-          commandBuffer = ''
-          setWakeStatus('activated')
-          setIsListening(true)
-        }
-        return
+      isProcessingRef.current = true
+      setIsProcessingVoice(true)
+      setLastCommand(text)
+
+      try {
+        const intent = (await parseVoiceIntent(text, recipe.title, currentStepIndexRef.current + 1)).trim()
+        setIntentLabel(intent)
+        await handleIntentRef.current(intent, text)
+      } catch {
+        // Keep cooking conversation flowing even if a stray transcript fails.
+      } finally {
+        isProcessingRef.current = false
+        setIsProcessingVoice(false)
       }
-
-      commandBuffer += ' ' + text
-      if (silenceTimer) clearTimeout(silenceTimer)
-      silenceTimer = setTimeout(async () => {
-        activated = false
-        setWakeStatus('listening')
-        setIsListening(false)
-        const cmd = commandBuffer.trim()
-        commandBuffer = ''
-        if (!cmd || !recipe) return
-        setLastCommand(cmd)
-        setIsProcessingVoice(true)
-        try {
-          const intent = (await parseVoiceIntent(cmd, recipe.title, currentStepIndex + 1)).trim()
-          setIntentLabel(intent)
-          await handleIntent(intent, cmd)
-        } catch (e) {
-          setLastCommand(`Error: ${e instanceof Error ? e.message : 'unknown'}`)
-        } finally {
-          setIsProcessingVoice(false)
-        }
-      }, 1500)
     }
 
     recognition.onend = () => {
-      if (!stopped) {
-        setWakeStatus('listening')
+      setRecognitionActive(false)
+      setIsListening(false)
+      if (!stopped && !isSpeakingRef.current) {
         try {
           recognition.start()
+          setRecognitionActive(true)
+          setIsListening(true)
         } catch {}
       }
     }
@@ -241,24 +277,56 @@ export default function CookMode() {
     recognition.onerror = (e: any) => {
       if (e.error === 'not-allowed') {
         stopped = true
-        setWakeStatus('sleeping')
+        setRecognitionActive(false)
+        setIsListening(false)
+      }
+      if (e.error === 'no-speech') {
+        try {
+          recognition.start()
+          setRecognitionActive(true)
+          setIsListening(true)
+        } catch {}
       }
     }
 
     try {
       recognition.start()
+      setRecognitionActive(true)
+      setIsListening(true)
     } catch {}
 
     return () => {
       stopped = true
-      setWakeStatus('sleeping')
+      recognitionRef.current = null
+      setRecognitionActive(false)
       setIsListening(false)
       try {
         recognition.stop()
       } catch {}
-      if (silenceTimer) clearTimeout(silenceTimer)
     }
-  }, [selectedPersona?.id, recipe, currentStepIndex, handleIntent, setIsListening, setLastCommand])
+  }, [selectedPersona?.id, recipe?.title, setIsListening, setLastCommand])
+
+  useEffect(() => {
+    const recognition = recognitionRef.current
+    if (!recognition) return
+
+    if (isSpeaking) {
+      setRecognitionActive(false)
+      setIsListening(false)
+      try {
+        recognition.stop()
+      } catch {}
+      return
+    }
+
+    if (!isProcessingVoice) {
+      try {
+        recognition.start()
+        setRecognitionActive(true)
+        setIsListening(true)
+      } catch {}
+    }
+  }, [isSpeaking, isProcessingVoice, setIsListening])
 
   const finishHold = async () => {
     if (!holdingActiveRef.current || !holdRef.current) {
@@ -266,7 +334,7 @@ export default function CookMode() {
     }
     holdingActiveRef.current = false
     setIsHolding(false)
-    setIsListening(false)
+    setIsListening(recognitionActive)
 
     const recorder = holdRef.current
     holdRef.current = null
@@ -310,10 +378,22 @@ export default function CookMode() {
     }
   }
 
-  const statusPlain = isHolding ? 'Listening...' : isProcessingVoice ? 'Thinking...' : isSpeaking ? 'Speaking...' : 'Hold to talk'
+  const statusPlain = isSpeaking
+    ? 'Speaking...'
+    : isProcessingVoice
+      ? 'Thinking...'
+      : recognitionActive || isHolding
+        ? 'Listening...'
+        : 'Hold to talk too'
   const progress = totalSteps > 0 ? ((currentStepIndex + 1) / totalSteps) * 100 : 0
-  const wakeDotClass = wakeStatus === 'sleeping' ? 'bg-[#bbb]' : 'bg-[#2d4a1e] animate-pulse'
-  const orbClass = isHolding || wakeStatus === 'activated' ? 'bg-red-500' : isSpeaking ? 'bg-blue-500' : 'bg-[#2d4a1e]'
+  const listeningDotClass = recognitionActive ? 'bg-[#2d4a1e] animate-pulse' : 'bg-[#bbb]'
+  const orbClass = isSpeaking
+    ? 'bg-blue-500'
+    : isProcessingVoice
+      ? 'bg-red-500'
+      : recognitionActive || isHolding
+        ? 'bg-[#2d4a1e] animate-pulse'
+        : 'bg-[#2d4a1e]'
 
   return (
     <main
@@ -338,10 +418,9 @@ export default function CookMode() {
               Step {currentStepIndex + 1}/{totalSteps}
             </p>
             <div className="mt-2 flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${wakeDotClass}`} />
-              <span className="text-[10px] uppercase tracking-wide text-[#888]">{wakeStatus}</span>
+              <span className={`h-2.5 w-2.5 rounded-full ${listeningDotClass}`} />
+              <span className="text-[10px] uppercase tracking-wide text-[#888]">LISTENING</span>
             </div>
-            <p className="mt-1 text-xs text-[#888]">Say &quot;{wakeWord}&quot; to activate</p>
           </div>
           <div className="min-w-0 text-center">
             <p className="truncate text-sm font-semibold text-[#2d4a1e]">
