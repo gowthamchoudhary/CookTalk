@@ -35,7 +35,6 @@ function toRecipe(raw: any): Recipe {
 
 const RECIPE_JSON_SHAPE = `{ title: string, totalSteps: number, ingredients: string[], steps: [ { stepNumber: number, instruction: string, timerMinutes?: number } ] }`
 
-// Takes a dish name spoken by user, returns structured recipe
 export async function generateRecipeFromVoice(dishName: string): Promise<Recipe> {
   try {
     if (!GROQ_KEY) {
@@ -83,7 +82,6 @@ export async function generateRecipeFromVoice(dishName: string): Promise<Recipe>
   }
 }
 
-// Takes a base64 image of a recipe, returns structured recipe
 export async function extractRecipeFromImage(base64Image: string): Promise<Recipe> {
   try {
     if (!GROQ_KEY) {
@@ -138,7 +136,6 @@ export async function extractRecipeFromImage(base64Image: string): Promise<Recip
   }
 }
 
-// Takes transcript + current recipe context, returns intent as string
 export async function parseVoiceIntent(
   transcript: string,
   recipeTitle: string,
@@ -155,17 +152,17 @@ export async function parseVoiceIntent(
       messages: [
         {
           role: 'system',
-          content: `You are a voice command parser for a cooking app. The user is cooking "${recipeTitle}", currently on step ${currentStep}. 
-          Classify the transcript into EXACTLY one of these intents:
-          - "next" — user wants to go to next step
-          - "previous" — user wants to go back
-          - "repeat" — user wants current step repeated
-          - "timer:N" — user wants to set a timer for N minutes (extract the number)
-          - "timer_check" — user asks how long is left on timer
-          - "question" — user is asking a cooking question or needs help
-          - "ingredients" — user wants to hear the ingredients list
-          - "done" — user says they are finished cooking
-          Return ONLY the intent string, nothing else.`,
+          content: `You are a voice command parser for a cooking app. The user is cooking "${recipeTitle}", currently on step ${currentStep}.
+Classify the transcript into EXACTLY one of these intents:
+- "next" - user wants to go to next step
+- "previous" - user wants to go back
+- "repeat" - user wants current step repeated
+- "timer:N" - user wants to set a timer for N minutes (extract the number)
+- "timer_check" - user asks how long is left on timer
+- "question" - user is asking a cooking question or needs help
+- "ingredients" - user wants to hear the ingredients list
+- "done" - user says they are finished cooking
+Return ONLY the intent string, nothing else.`,
         },
         { role: 'user', content: transcript },
       ],
@@ -176,7 +173,6 @@ export async function parseVoiceIntent(
   return data.choices[0].message.content.trim()
 }
 
-// Takes a freeform question + recipe context, returns answer string
 export async function answerCookingQuestion(
   question: string,
   recipe: Recipe,
@@ -194,11 +190,25 @@ export async function answerCookingQuestion(
       messages: [
         {
           role: 'system',
-          content: `${personaPrompt} The user is cooking "${recipe.title}" and is on step ${currentStep} of ${recipe.totalSteps}. Answer their cooking question briefly and in character. Max 2 sentences.`,
+          content: `${personaPrompt}
+
+You are guiding someone through cooking "${recipe.title}". They are on step ${currentStep} of ${recipe.totalSteps}.
+
+Full recipe steps:
+${recipe.steps.map((s, i) => `Step ${i + 1}: ${s.instruction}`).join('\n')}
+
+Ingredients: ${recipe.ingredients.join(', ')}
+
+RULES:
+- If user says they don't have an ingredient, suggest the best substitute with adjusted quantity
+- If user has less quantity than required (e.g. only 75ml but recipe says 100ml), do the math and say how to adjust
+- If user asks what a technique means, explain simply in 1 sentence
+- If user asks "is it done?" give visual or tactile cues specific to this dish
+- Answer in character, max 3 sentences, always helpful never vague`,
         },
         { role: 'user', content: question },
       ],
-      max_tokens: 100,
+      max_tokens: 200,
     }),
   })
   const data = await response.json()

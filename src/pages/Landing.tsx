@@ -7,76 +7,77 @@ function envKeysMissing(): boolean {
   return bad(groq) || bad(eleven)
 }
 
-const floatEmojis = ['🍅', '🥕', '🧄', '🌿', '🥘', '🍋']
-
 export default function Landing() {
   const navigate = useNavigate()
   const missingKeys = envKeysMissing()
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gray-950 px-6 text-center text-white">
+    <main className="relative min-h-screen bg-[#f5f0e8] flex flex-col items-center justify-between px-6 py-10 overflow-hidden">
       <div className="pointer-events-none absolute inset-0">
-        {floatEmojis.map((emoji, i) => (
+        {['🍅', '🥕', '🧄', '🌿', '🍋', '🫚'].map((e, i) => (
           <span
-            key={i}
-            className="animate-float absolute text-4xl opacity-50"
+            key={e}
+            className="absolute text-3xl opacity-30 animate-float-slow"
             style={{
               left: `${8 + i * 15}%`,
-              top: `${12 + (i % 3) * 22}%`,
-              animationDelay: `${i * 0.5}s`,
+              top: `${10 + (i % 3) * 25}%`,
+              animationDelay: `${i * 0.4}s`,
             }}
           >
-            {emoji}
+            {e}
           </span>
         ))}
       </div>
 
-      <div className="relative z-10 flex max-w-3xl flex-col items-center">
-        {missingKeys ? (
-          <p className="mb-8 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-            Missing API keys — add them to <code className="text-amber-100">.env</code> (VITE_GROQ_API_KEY and
-            VITE_ELEVENLABS_API_KEY)
-          </p>
-        ) : null}
-
-        <h1 className="text-6xl font-bold text-white">VoiceChef</h1>
-        <p className="mt-6 text-xl text-gray-400">Cook hands-free. Your voice is the spatula.</p>
-
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-          <span className="inline-flex items-center rounded-full border border-gray-700 px-4 py-2 text-sm text-gray-300">
-            Voice controlled
-          </span>
-          <span className="inline-flex items-center rounded-full border border-gray-700 px-4 py-2 text-sm text-gray-300">
-            Snap any recipe
-          </span>
-          <span className="inline-flex items-center rounded-full border border-gray-700 px-4 py-2 text-sm text-gray-300">
-            4 chef personas
-          </span>
+      {missingKeys && (
+        <div className="relative z-10 w-full max-w-md bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-sm text-red-600 text-center">
+          Missing API keys in .env
         </div>
+      )}
 
+      <section className="relative z-10 flex flex-col items-center text-center mt-8">
+        <div className="w-20 h-20 bg-[#2d4a1e] rounded-3xl flex items-center justify-center text-4xl mb-6">
+          🎙
+        </div>
+        <h1 className="text-6xl font-bold text-[#1a1a1a] tracking-tight">
+          Voice<span className="text-[#2d4a1e]">Chef</span>
+        </h1>
+        <p className="mt-3 text-[#888] text-base">Cook completely hands-free.</p>
+        <div className="flex gap-2 flex-wrap justify-center mt-4">
+          {['🎙 Voice first', '📸 Snap recipes', '👨‍🍳 4 personas'].map((label) => (
+            <span key={label} className="border border-[#ccc] rounded-full px-3 py-1 text-xs text-[#888] bg-white">
+              {label}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="relative z-10 w-full max-w-md space-y-3 my-8">
+        {[
+          { n: '1', title: 'Choose a recipe', desc: 'Snap a page or say the dish you want to cook.' },
+          { n: '2', title: 'Pick a voice coach', desc: 'Choose a persona with a wake word and a real voice.' },
+          { n: '3', title: 'Cook hands-free', desc: 'Move through steps, ask questions, set timers by voice.' },
+        ].map((s) => (
+          <div key={s.n} className="bg-white rounded-2xl px-5 py-4 flex items-start gap-4 shadow-sm">
+            <span className="w-8 h-8 bg-[#2d4a1e] text-white rounded-full flex items-center justify-center text-sm font-bold shrink-0">
+              {s.n}
+            </span>
+            <div>
+              <p className="font-semibold text-[#1a1a1a]">{s.title}</p>
+              <p className="text-sm text-[#888] mt-0.5">{s.desc}</p>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <div className="relative z-10 w-full max-w-md">
         <button
           type="button"
           onClick={() => navigate('/recipe')}
-          className="mt-12 rounded-full bg-orange-500 px-10 py-4 text-xl font-bold text-white transition hover:bg-orange-400"
+          className="w-full bg-[#2d4a1e] text-white rounded-2xl py-5 text-lg font-bold"
         >
-          Start Cooking
+          Start Cooking →
         </button>
-
-        <h2 className="mt-20 text-lg font-semibold text-white">How it works</h2>
-        <div className="mt-8 grid w-full max-w-4xl gap-6 md:grid-cols-3">
-          {[
-            { n: 1, t: 'Snap or say — get a structured recipe from a photo or your voice.' },
-            { n: 2, t: 'Pick your chef — each persona guides you with a different vibe.' },
-            { n: 3, t: 'Cook hands-free — steps, timers, and questions through voice.' },
-          ].map((card) => (
-            <div key={card.n} className="rounded-2xl bg-gray-900 p-6 text-left text-gray-300">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-lg font-bold text-white">
-                {card.n}
-              </span>
-              <p className="mt-4 text-sm leading-relaxed">{card.t}</p>
-            </div>
-          ))}
-        </div>
       </div>
     </main>
   )

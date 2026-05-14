@@ -13,52 +13,61 @@ export default function RecipePreview() {
   const navigate = useNavigate()
   const { recipe } = useAppContext()
 
-  const steps = recipe?.steps.length
-    ? recipe.steps.map((step) => step.instruction)
-    : dummySteps
+  const steps = recipe?.steps.length ? recipe.steps.map((step) => step.instruction) : dummySteps
+  const title = recipe?.title ?? 'Your Recipe'
 
   return (
-    <main className="min-h-screen bg-gray-950 px-6 py-10 text-white">
-      <div className="mx-auto flex max-w-4xl flex-col">
-        <h1 className="text-3xl font-bold">{recipe?.title ?? 'Your Recipe'}</h1>
-        <p className="mt-2 text-gray-400">{steps.length} steps</p>
+    <main className="min-h-screen bg-[#f5f0e8] pb-6 font-sans text-[#1a1a1a]">
+      <header className="sticky top-0 z-30 bg-[#f5f0e8] pt-6 px-5 pb-3">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="min-w-0 text-2xl font-bold tracking-tight text-[#1a1a1a]">{title}</h1>
+          <span className="shrink-0 rounded-full bg-[#2d4a1e] px-3 py-1 text-xs font-bold text-white">
+            {steps.length} steps
+          </span>
+        </div>
+      </header>
 
+      <div className="px-5 pt-4">
         {recipe?.ingredients && recipe.ingredients.length > 0 ? (
-          <div className="mt-6 rounded-2xl border border-gray-800 bg-gray-900 p-4">
-            <p className="text-sm font-semibold text-orange-400">Ingredients</p>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-gray-300">
-              {recipe.ingredients.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
+          <section className="rounded-3xl bg-white p-5 shadow-sm">
+            <div className="rounded-2xl bg-gradient-to-br from-[#f0ebe0] to-white p-4">
+              <p className="text-sm font-bold uppercase tracking-wide text-[#2d4a1e]">Ingredients</p>
+              <ul className="mt-4 grid gap-2 text-sm text-[#1a1a1a]">
+                {recipe.ingredients.map((item) => (
+                  <li key={item} className="rounded-xl bg-white/70 px-3 py-2 text-[#1a1a1a]">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
         ) : null}
 
-        <div className="mt-8 max-h-[55vh] space-y-3 overflow-y-auto">
+        <section className="mt-6 pb-5">
           {steps.map((instruction, index) => (
-            <div key={`${index}-${instruction.slice(0, 24)}`} className="flex gap-4 rounded-2xl bg-gray-900 p-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500 text-sm font-bold text-white">
+            <article key={`${index}-${instruction.slice(0, 24)}`} className="mb-3 flex gap-4 rounded-2xl bg-white p-4 shadow-sm">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2d4a1e] text-sm font-bold text-white">
                 {index + 1}
               </span>
-              <p className="flex-1 text-gray-200">{instruction}</p>
-            </div>
+              <p className="pt-1 text-sm leading-relaxed text-[#1a1a1a]">{instruction}</p>
+            </article>
           ))}
-        </div>
+        </section>
 
-        <div className="mt-10 flex flex-wrap gap-4">
+        <div className="flex flex-col gap-3">
           <button
             type="button"
             onClick={() => navigate('/recipe')}
-            className="rounded-full border border-gray-600 bg-gray-800 px-8 py-3 font-semibold text-gray-200 transition hover:bg-gray-700"
+            className="w-full rounded-2xl border border-[#2d4a1e] bg-transparent py-4 font-semibold text-[#2d4a1e]"
           >
             Re-do
           </button>
           <button
             type="button"
             onClick={() => navigate('/persona')}
-            className="rounded-full bg-orange-500 px-8 py-3 font-bold text-white transition hover:bg-orange-400"
+            className="w-full rounded-2xl bg-[#2d4a1e] py-4 font-semibold text-white"
           >
-            Let&apos;s Cook
+            Let's Cook →
           </button>
         </div>
       </div>

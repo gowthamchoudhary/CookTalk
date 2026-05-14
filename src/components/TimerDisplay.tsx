@@ -11,14 +11,8 @@ function formatSeconds(seconds: number) {
 }
 
 export function TimerDisplay({ seconds, flashWarn }: TimerDisplayProps) {
-  const isDanger = seconds > 0 && seconds < 60
-  const isWarnFlash = Boolean(flashWarn)
   return (
-    <div
-      className={`text-2xl font-mono text-orange-400 transition-colors duration-300 ${
-        isWarnFlash || isDanger ? 'text-red-400' : ''
-      } ${isWarnFlash ? 'animate-pulse' : ''}`}
-    >
+    <div className={`text-right font-mono font-bold text-[#2d4a1e] ${flashWarn ? 'animate-pulse' : ''}`}>
       {formatSeconds(seconds)}
     </div>
   )

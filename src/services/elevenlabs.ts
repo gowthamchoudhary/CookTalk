@@ -1,7 +1,23 @@
 const API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY
+let currentAudio: HTMLAudioElement | null = null
+let currentCancel: (() => void) | null = null
 
-// Converts text to speech and plays it back — resolves when playback finishes
+export function stopCurrentAudio() {
+  if (currentAudio) {
+    currentAudio.pause()
+    currentAudio.src = ''
+    currentAudio = null
+  }
+  if (currentCancel) {
+    currentCancel()
+    currentCancel = null
+  }
+}
+
+// Converts text to speech and plays it back; resolves when playback finishes.
 export async function speakText(text: string, voiceId: string): Promise<void> {
+  stopCurrentAudio()
+
   const id = voiceId || '21m00Tcm4TlvDq8ikWAM'
 
   if (!API_KEY) {
@@ -28,21 +44,31 @@ export async function speakText(text: string, voiceId: string): Promise<void> {
   const audioBlob = await response.blob()
   const audioUrl = URL.createObjectURL(audioBlob)
   const audio = new Audio(audioUrl)
+  currentAudio = audio
 
   try {
     await audio.play()
   } catch {
     URL.revokeObjectURL(audioUrl)
+    if (currentAudio === audio) currentAudio = null
     throw new Error('Audio playback was blocked or failed to start')
   }
 
   await new Promise<void>((resolve, reject) => {
+    currentCancel = () => {
+      URL.revokeObjectURL(audioUrl)
+      resolve()
+    }
     audio.onended = () => {
       URL.revokeObjectURL(audioUrl)
+      currentAudio = null
+      currentCancel = null
       resolve()
     }
     audio.onerror = () => {
       URL.revokeObjectURL(audioUrl)
+      currentAudio = null
+      currentCancel = null
       reject(new Error('Audio playback failed'))
     }
   })
@@ -55,7 +81,7 @@ async function transcribeAudioBlob(audioBlob: Blob): Promise<string> {
 
   const formData = new FormData()
   formData.append('file', audioBlob, 'recording.webm')
-  formData.append('model', 'scribe_v1')
+  formData.append('model_id', 'scribe_v1')
 
   const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
     method: 'POST',
@@ -68,7 +94,7 @@ async function transcribeAudioBlob(audioBlob: Blob): Promise<string> {
   return data.text || ''
 }
 
-/** Fixed 3s clip — used by recipe voice entry */
+// Fixed 3s clip; used by recipe voice entry.
 export async function recordAndTranscribe(): Promise<string> {
   return new Promise((resolve, reject) => {
     void (async () => {
@@ -104,7 +130,7 @@ export async function recordAndTranscribe(): Promise<string> {
 
 export type HoldRecorder = { stop: () => Promise<string> }
 
-/** Press-and-hold: start recording; call stop() to finish and get transcript */
+// Press-and-hold: start recording; call stop() to finish and get transcript.
 export async function beginHoldRecording(): Promise<HoldRecorder> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
   const mediaRecorder = new MediaRecorder(stream)

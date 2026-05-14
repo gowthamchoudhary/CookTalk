@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import type { PersonaConfig, Recipe } from '../types'
 import { speakText as speakTextService } from '../services/elevenlabs'
+import type { PersonaConfig, Recipe } from '../types'
 
 interface AppContextValue {
   recipe: Recipe | null
@@ -17,6 +17,8 @@ interface AppContextValue {
   setTimerSeconds: (n: number) => void
   timerRunning: boolean
   setTimerRunning: (b: boolean) => void
+  cookStartedAt: number | null
+  setCookStartedAt: (n: number | null) => void
   isSpeaking: boolean
   speak: (text: string, voiceId: string) => Promise<void>
 }
@@ -29,7 +31,9 @@ export const PERSONAS: PersonaConfig[] = [
     emoji: '🪖',
     systemPrompt:
       'You are an aggressive military drill sergeant teaching cooking. Be demanding, impatient, and intense. Short sharp sentences. Never compliment unless earned.',
-    voiceId: '',
+    voiceId: 'DGzg6RaUqxGRTHSBjfgF',
+    wakeWord: 'sergeant',
+    language: 'en',
   },
   {
     id: 'nani',
@@ -38,7 +42,9 @@ export const PERSONAS: PersonaConfig[] = [
     emoji: '👵',
     systemPrompt:
       'You are a warm loving Indian grandmother teaching cooking. Call the user beta. Be encouraging, add little tips, speak with warmth and love. Occasionally use simple Hindi words.',
-    voiceId: '',
+    voiceId: 'zMndFmtlJvAIQjxXWZTU',
+    wakeWord: 'nani',
+    language: 'hi',
   },
   {
     id: 'zen-master',
@@ -47,7 +53,9 @@ export const PERSONAS: PersonaConfig[] = [
     emoji: '🧘',
     systemPrompt:
       'You are a calm zen master teaching cooking as a spiritual practice. Turn every cooking step into a philosophical insight. Speak slowly and thoughtfully.',
-    voiceId: '',
+    voiceId: 'WczBIOau2qV9z7nLeDqq',
+    wakeWord: 'zen',
+    language: 'en',
   },
   {
     id: 'hype-man',
@@ -56,7 +64,9 @@ export const PERSONAS: PersonaConfig[] = [
     emoji: '🔥',
     systemPrompt:
       'You are an extremely enthusiastic hype man coaching someone through cooking like its a championship. Use energy, excitement, caps for emphasis. Every step is epic.',
-    voiceId: '',
+    voiceId: 'WczBIOau2qV9z7nLeDqq',
+    wakeWord: 'hype',
+    language: 'en',
   },
 ]
 
@@ -70,6 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [lastCommand, setLastCommand] = useState('Waiting for your first command...')
   const [timerSeconds, setTimerSeconds] = useState(0)
   const [timerRunning, setTimerRunning] = useState(false)
+  const [cookStartedAt, setCookStartedAt] = useState<number | null>(null)
   const [isSpeaking, setIsSpeaking] = useState(false)
 
   const speak = useCallback(async (text: string, voiceId: string) => {
@@ -97,6 +108,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTimerSeconds,
       timerRunning,
       setTimerRunning,
+      cookStartedAt,
+      setCookStartedAt,
       isSpeaking,
       speak,
     }),
@@ -108,6 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       lastCommand,
       timerSeconds,
       timerRunning,
+      cookStartedAt,
       isSpeaking,
       speak,
     ],
