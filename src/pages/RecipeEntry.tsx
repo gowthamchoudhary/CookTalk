@@ -2,8 +2,21 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { VoiceOrb } from '../components/VoiceOrb'
 import { useAppContext } from '../context/AppContext'
-import { extractRecipeFromImage, generateRecipeFromVoice } from '../services/groq'
 import { recordAndTranscribe } from '../services/elevenlabs'
+import { extractRecipeFromImage, generateRecipeFromVoice } from '../services/groq'
+
+function LoadingDots() {
+  return (
+    <span className="inline-flex items-center gap-1">
+      Generating recipe
+      {[0, 1, 2].map((dot) => (
+        <span key={dot} className="animate-pulse inline-block" style={{ animationDelay: `${dot * 0.16}s` }}>
+          .
+        </span>
+      ))}
+    </span>
+  )
+}
 
 export default function RecipeEntry() {
   const navigate = useNavigate()
@@ -96,94 +109,82 @@ export default function RecipeEntry() {
     }
   }
 
-  const openVoiceOverlay = () => {
-    if (!isLoading) {
-      void runVoiceFlow()
-    }
-  }
-
   return (
-    <main className="relative min-h-screen bg-gray-950 px-6 py-10 text-white">
+    <main className="relative min-h-screen bg-[#f5f0e8] px-5 py-6 font-sans text-[#1a1a1a]">
       {voiceOverlay ? (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-950/95 backdrop-blur-sm">
-          <p className="mb-8 text-center text-xl font-medium text-gray-200">Say the dish you want to make</p>
-          <div className="mb-10 text-6xl font-black tabular-nums text-orange-400">
-            {countdown > 0 ? countdown : '●'}
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#f5f0e8]/95 px-6 text-center backdrop-blur">
+          <div className="relative flex h-48 w-48 items-center justify-center">
+            <div className="absolute h-48 w-48 rounded-full bg-[#2d4a1e]/10 animate-ping" />
+            <div className="absolute h-36 w-36 rounded-full bg-[#2d4a1e]/15 animate-pulse" />
+            <VoiceOrb state="listening" size="lg" />
           </div>
-          <VoiceOrb state="listening" size="lg" />
-          <p className="mt-6 text-orange-300">Listening...</p>
+          <p className="mt-8 text-8xl font-black leading-none text-[#2d4a1e]">{countdown > 0 ? countdown : 'Go'}</p>
+          <p className="mt-5 text-2xl font-bold tracking-tight text-[#1a1a1a]">Say the dish name</p>
+          <p className="mt-2 text-sm text-[#888]">VoiceChef is listening</p>
         </div>
       ) : null}
 
-      <div className="mx-auto flex max-w-5xl flex-col items-center">
-        <div className="w-full">
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="text-gray-500 transition hover:text-white"
-          >
-            ← Back
-          </button>
-        </div>
+      <button type="button" onClick={() => navigate('/')} className="text-sm font-bold text-[#2d4a1e]">
+        ← Back
+      </button>
 
-        <h1 className="mt-6 text-center text-3xl font-bold">How do you want to cook today?</h1>
+      <section className="mt-10">
+        <h1 className="text-3xl font-bold tracking-tight text-[#1a1a1a]">How do you want to cook today?</h1>
+        <p className="mt-2 text-sm text-[#888]">Bring a recipe or ask VoiceChef to make one.</p>
+      </section>
 
-        <div className="mt-12 grid w-full max-w-3xl gap-6 md:grid-cols-2">
+      <section className="mt-8 flex flex-col gap-5">
+        <article className="rounded-3xl border-t-4 border-[#2d4a1e] bg-white p-7 shadow-sm">
+          <p className="text-6xl">📸</p>
+          <h2 className="mt-5 text-2xl font-bold text-[#1a1a1a]">Snap a Recipe</h2>
+          <p className="mt-2 text-sm leading-relaxed text-[#888]">Upload a cookbook page, recipe card, or screenshot.</p>
           <button
             type="button"
             onClick={() => !isLoading && fileInputRef.current?.click()}
-            className="cursor-pointer rounded-3xl border border-gray-800 bg-gray-900 p-8 text-center transition-all hover:border-orange-500 disabled:opacity-50"
             disabled={isLoading}
+            className="mt-6 w-full rounded-2xl bg-[#2d4a1e] py-4 font-semibold text-white disabled:opacity-50"
           >
-            <p className="text-5xl">📷</p>
-            <h2 className="mt-6 text-xl font-semibold">Snap a Recipe</h2>
-            <p className="mt-2 text-sm text-gray-400">Photo of any recipe — book, card, screen</p>
+            Open Camera
           </button>
+        </article>
 
+        <article className="rounded-3xl border-t-4 border-[#7c6a3e] bg-white p-7 shadow-sm">
+          <p className="text-6xl">🎙</p>
+          <h2 className="mt-5 text-2xl font-bold text-[#1a1a1a]">Say a Dish</h2>
+          <p className="mt-2 text-sm leading-relaxed text-[#888]">Name what you want and get a guided recipe.</p>
           <button
             type="button"
-            onClick={openVoiceOverlay}
-            className="cursor-pointer rounded-3xl border border-gray-800 bg-gray-900 p-8 text-center transition-all hover:border-orange-500 disabled:opacity-50"
+            onClick={() => !isLoading && void runVoiceFlow()}
             disabled={isLoading}
+            className="mt-6 w-full rounded-2xl bg-[#2d4a1e] py-4 font-semibold text-white disabled:opacity-50"
           >
-            <p className="text-5xl">🎤</p>
-            <h2 className="mt-6 text-xl font-semibold">Say a Dish</h2>
-            <p className="mt-2 text-sm text-gray-400">Just say what you want to make</p>
+            Start Voice
           </button>
-        </div>
+        </article>
+      </section>
 
+      <section className="mt-6 space-y-4 text-center">
         {transcript ? (
-          <div className="mt-8 inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">
+          <p className="inline-flex max-w-full rounded-full border border-[#2d4a1e]/30 bg-white px-4 py-2 text-sm font-semibold text-[#2d4a1e]">
             Heard: {transcript}
-          </div>
-        ) : null}
-
-        {retryMode ? (
-          <div className="mt-6 space-y-3 text-center">
-            <p className="text-gray-400">Didn&apos;t catch that, try again</p>
-            <button
-              type="button"
-              onClick={() => void runVoiceFlow()}
-              className="rounded-full bg-orange-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-orange-400"
-            >
-              Retry
-            </button>
-          </div>
-        ) : null}
-
-        {isLoading && !voiceOverlay ? (
-          <div className="mt-8 flex items-center gap-3 text-orange-300">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-orange-300 border-t-transparent" />
-            <p className="text-sm">{loadingMessage}</p>
-          </div>
-        ) : null}
-
-        {error ? (
-          <p className="mt-6 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-center text-sm text-red-300">
-            {error}
           </p>
         ) : null}
-      </div>
+        {retryMode ? (
+          <button
+            type="button"
+            onClick={() => void runVoiceFlow()}
+            className="rounded-2xl border border-[#2d4a1e] bg-transparent px-6 py-3 font-semibold text-[#2d4a1e]"
+          >
+            Retry
+          </button>
+        ) : null}
+        {isLoading && !voiceOverlay ? (
+          <p className="text-sm font-bold text-[#2d4a1e]">
+            {loadingMessage === 'Generating recipe...' ? <LoadingDots /> : loadingMessage}
+          </p>
+        ) : null}
+        {error ? <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">{error}</p> : null}
+      </section>
 
       <input
         ref={fileInputRef}

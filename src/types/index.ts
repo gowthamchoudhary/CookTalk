@@ -6,7 +6,9 @@ export interface PersonaConfig {
   vibe: string
   emoji: string
   systemPrompt: string
-  voiceId: string // ElevenLabs voice ID, empty string for now
+  voiceId: string
+  wakeWord: string
+  language: 'en' | 'hi' | 'es'
 }
 
 export interface RecipeStep {
